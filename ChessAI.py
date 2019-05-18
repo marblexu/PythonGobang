@@ -137,6 +137,8 @@ class ChessAI():
 		opponent_count = self.count[opponent-1]
 		
 		mscore, oscore = self.getScore(mine_count, opponent_count)
+		if mscore >= SCORE_FIVE or oscore >= SCORE_FIVE:
+			DEBUG(DEBUG_INFO, '(%d, %d), %d:%d, %d:%d' % (x, y, mine-1, mscore, opponent-1, oscore))
 		return max(mscore, oscore)
 				
 	# get all positions near chess
@@ -269,7 +271,10 @@ class ChessAI():
 			
 		if (opponent_count[THREE] > 1 and mine_count[THREE] == 0 and mine_count[STHREE] == 0):
 			return (0, 9000)
-			
+
+		if opponent_count[SFOUR] > 0:
+			oscore += 400
+
 		if mine_count[THREE] > 1:
 			mscore += 500
 		elif mine_count[THREE] > 0:
@@ -317,6 +322,7 @@ class ChessAI():
 		mine_count = self.count[mine-1]
 		opponent_count = self.count[opponent-1]
 		if checkWin:
+			DEBUG(DEBUG_WARN, '%d: %s\n%d: %s' % (mine-1, mine_count, opponent-1, opponent_count))
 			return mine_count[FIVE] > 0
 		else:	
 			mscore, oscore = self.getScore(mine_count, opponent_count)
@@ -324,10 +330,12 @@ class ChessAI():
 	
 	def evaluatePoint(self, board, x, y, mine, opponent, count=None):
 		dir_offset = [(1, 0), (0, 1), (1, 1), (1, -1)] # direction from left to right
+		ignore_record = True
 		if count is None:
 			count = self.count[mine-1]
+			ignore_record = False
 		for i in range(4):
-			if self.record[y][x][i] == 0:
+			if self.record[y][x][i] == 0 or ignore_record:
 				self.analysisLine1(board, x, y, i, dir_offset[i], mine, opponent, count)
 				#type = self.analysisLine(board, x, y, i, dir_offset[i], mine, opponent)
 				#if type != CHESS_TYPE.NONE:
