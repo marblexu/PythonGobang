@@ -83,7 +83,7 @@ class Map():
 				op_turn = 1
 			pygame.draw.circle(screen, player_color[turn-1], pos, radius)
 			
-			msg_image = font.render(str(i), True, player_color[op_turn-1], player_color[turn-1])
+			msg_image = font.render(str(i+1), True, player_color[op_turn-1], player_color[turn-1])
 			msg_image_rect = msg_image.get_rect()
 			msg_image_rect.center = pos
 			screen.blit(msg_image, msg_image_rect)
