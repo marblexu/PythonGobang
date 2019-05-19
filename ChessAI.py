@@ -5,6 +5,7 @@ import copy
 import time
 
 AI_SEARCH_DEPTH = 4
+AI_LIMITED_MOVE_NUM = 20
 
 DEBUG_LEVEL = 2
 
@@ -172,6 +173,10 @@ class ChessAI():
 				if board[y][x] == 3:
 					board[y][x] = 0
 		DEBUG(DEBUG_INFO, 'len:', len(moves), '  ', moves)
+
+		# FIXME: decrease think time: only consider limited moves with higher score
+		if self.maxdepth > 2 and len(moves) > AI_LIMITED_MOVE_NUM:
+			moves = moves[:AI_LIMITED_MOVE_NUM]
 		return moves
 	
 	def __search(self, board, turn, depth, alpha = SCORE_MIN, beta = SCORE_MAX):
