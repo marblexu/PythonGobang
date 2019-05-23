@@ -235,7 +235,7 @@ class ChessAI():
 		self.belta = 0
 		score, x, y = self.search(board, turn, AI_SEARCH_DEPTH)
 		time2 = time.time()
-		DEBUG(DEBUG_WARN, 'time[%d] (%d, %d), score[%d] alpha[%d] belta[%d] save[%d] cache[%d]' % ((time2-time1), x, y, score, self.alpha, self.belta, self.save_count, self.cacheGet))
+		DEBUG(DEBUG_WARN, 'time[%.2f] (%d, %d), score[%d] alpha[%d] belta[%d] save[%d] cache[%d]' % ((time2-time1), x, y, score, self.alpha, self.belta, self.save_count, self.cacheGet))
 		return (x, y)
 		
 	def evaluate(self, board, turn, depth):

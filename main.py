@@ -114,6 +114,7 @@ class Game():
 			if self.action is not None:
 				self.checkClick(self.action[0], self.action[1])
 				self.action = None
+				self.showAIThink()
 			
 			if not self.isOver():
 				self.changeMouseShow()
@@ -155,19 +156,23 @@ class Game():
 	def isOver(self):
 		return self.winner is not None
 
+	def showFont(self, text, location_x, locaiton_y, height):
+		font = pygame.font.SysFont(None, height)
+		font_image = font.render(text, True, (0, 0, 255), (255, 255, 255))
+		font_image_rect = font_image.get_rect()
+		font_image_rect.x = location_x
+		font_image_rect.y = locaiton_y
+		self.screen.blit(font_image, font_image_rect)
+
+	def showAIThink(self):
+		self.showFont('AI is thinking...', MAP_WIDTH + 25, SCREEN_HEIGHT//2-30, 30)
+
 	def showWinner(self):
-		def showFont(screen, text, location_x, locaiton_y, height):
-			font = pygame.font.SysFont(None, height)
-			font_image = font.render(text, True, (0, 0, 255), (255, 255, 255))
-			font_image_rect = font_image.get_rect()
-			font_image_rect.x = location_x
-			font_image_rect.y = locaiton_y
-			screen.blit(font_image, font_image_rect)
 		if self.winner == MAP_ENTRY_TYPE.MAP_PLAYER_ONE:
 			str = 'Winner is White'
 		else:
 			str = 'Winner is Black'
-		showFont(self.screen, str, MAP_WIDTH + 25, SCREEN_HEIGHT - 60, 30)
+		self.showFont(str, MAP_WIDTH + 25, SCREEN_HEIGHT - 60, 30)
 		pygame.mouse.set_visible(True)
 	
 	def click_button(self, button):
@@ -191,8 +196,6 @@ while True:
 		if event.type == pygame.QUIT:
 			pygame.quit()
 			exit()
-		if event.type == pygame.KEYDOWN:
-			break
 		elif event.type == pygame.MOUSEBUTTONDOWN:
 			mouse_x, mouse_y = pygame.mouse.get_pos()
 			game.mouseClick(mouse_x, mouse_y)
