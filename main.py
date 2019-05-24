@@ -73,11 +73,12 @@ class GiveupButton(Button):
 			self.enable = True
 
 class Game():
-	def __init__(self, caption):
+	def __init__(self, caption, play_mode, AI_first):
 		pygame.init()
 		self.screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
 		pygame.display.set_caption(caption)
 		self.clock = pygame.time.Clock()
+		self.mode = play_mode
 		self.buttons = []
 		self.buttons.append(StartButton(self.screen, 'Start', MAP_WIDTH + 30, 15))
 		self.buttons.append(GiveupButton(self.screen, 'Giveup', MAP_WIDTH + 30, BUTTON_HEIGHT + 45))
@@ -87,13 +88,18 @@ class Game():
 		self.player = MAP_ENTRY_TYPE.MAP_PLAYER_ONE
 		self.action = None
 		self.AI = ChessAI(CHESS_LEN)
-		self.useAI = False
+		self.AI_first = AI_first
 		self.winner = None
 	
 	def start(self):
 		self.is_play = True
 		self.player = MAP_ENTRY_TYPE.MAP_PLAYER_ONE
 		self.map.reset()
+		self.AI.number = 0
+		if (self.mode == USER_VS_AI_MODE and self.AI_first) or self.mode == AI_VS_AI_MODE:
+			self.useAI = True
+		else:
+			self.useAI = False
 
 	def play(self):
 		self.clock.tick(60)
@@ -109,15 +115,18 @@ class Game():
 			if self.useAI:
 				x, y = self.AI.findBestChess(self.map.map, self.player)
 				self.checkClick(x, y, True)
-				self.useAI = False
-
-			if self.action is not None:
-				self.checkClick(self.action[0], self.action[1])
-				self.action = None
-				self.showAIThink()
+				if self.mode == USER_VS_AI_MODE:
+					self.useAI = False
 			
-			if not self.isOver():
-				self.changeMouseShow()
+			if self.mode != AI_VS_AI_MODE:
+				if self.action is not None:
+					self.checkClick(self.action[0], self.action[1])
+					self.action = None
+					if self.mode == USER_VS_AI_MODE:
+						self.showAIThink()
+
+				if not self.isOver():
+					self.changeMouseShow()
 			
 		if self.isOver():
 			self.showWinner()
@@ -144,7 +153,7 @@ class Game():
 			self.click_button(self.buttons[1])
 		else:	
 			self.player = self.map.reverseTurn(self.player)
-			if not isAI:	
+			if not isAI and self.mode != USER_VS_USER_MODE:	
 				self.useAI = True
 	
 	def mouseClick(self, map_x, map_y):
@@ -187,7 +196,7 @@ class Game():
 				self.click_button(button)
 				break
 			
-game = Game("FIVE CHESS " + GAME_VERSION)
+game = Game("FIVE CHESS " + GAME_VERSION, GAME_PLAY_MODE, AI_RUN_FIRST)
 while True:
 	game.play()
 	pygame.display.update()

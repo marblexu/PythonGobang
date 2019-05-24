@@ -7,6 +7,17 @@ import time
 AI_SEARCH_DEPTH = 4
 AI_LIMITED_MOVE_NUM = 20
 
+# play mode
+USER_VS_USER_MODE = 0
+USER_VS_AI_MODE = 1
+AI_VS_AI_MODE = 2
+
+GAME_PLAY_MODE = 2
+
+# who run first
+AI_RUN_FIRST = True
+
+
 DEBUG_LEVEL = 2
 
 DEBUG_NONE = 0
@@ -39,7 +50,8 @@ SFOUR, STHREE, STWO = CHESS_TYPE.CHONG_FOUR.value, CHESS_TYPE.SLEEP_THREE.value,
 
 SCORE_MAX = 0x7fffffff
 SCORE_MIN = -1 * SCORE_MAX
-SCORE_FIVE = 10000
+SCORE_FIVE, SCORE_FOUR, SCORE_SFOUR = 100000, 10000, 1000
+SCORE_THREE, SCORE_STHREE, SCORE_TWO, SCORE_STWO = 100, 10, 8, 2
 
 class ZobristHash():
 	def __init__(self, chess_len):
@@ -76,6 +88,8 @@ class ChessAI():
 		self.record = [[[0,0,0,0] for x in range(chess_len)] for y in range(chess_len)]
 		self.count = [[0 for x in range(CHESS_TYPE_NUM)] for i in range(2)]
 		self.pos_score = [[(7 - max(abs(x - 7), abs(y - 7))) for x in range(chess_len)] for y in range(chess_len)]
+		self.number = 0
+		self.save_count = 0
 		self.cache = cache
 		self.cacheGet = 0
 		if self.cache:
@@ -94,16 +108,19 @@ class ChessAI():
 		self.save_count = 0
 	
 	def click(self, map, x, y, turn):
+		self.number += 1
 		map.click(x, y, turn)
 		if self.cache:
 			self.zobrist.generate(turn.value - 1, x, y)
 
 	def set(self, board, x, y, turn):
+		self.number += 1
 		board[y][x] = turn.value
 		if self.cache:
 			self.zobrist.generate(turn.value - 1, x, y)
 	
 	def remove(self, board, x, y, turn):
+		self.number -= 1
 		board[y][x] = 0
 		if self.cache:
 			self.zobrist.generate(turn.value - 1, x, y)
@@ -136,22 +153,31 @@ class ChessAI():
 		board[y][x] = opponent
 		self.evaluatePoint(board, x, y, opponent, mine, self.count[opponent-1])
 		opponent_count = self.count[opponent-1]
-		
-		mscore, oscore = self.getScore(mine_count, opponent_count)
+		board[y][x] = 0
+
+		mscore = self.getPointScore(mine_count)
+		oscore = self.getPointScore(opponent_count)
 		if mscore >= SCORE_FIVE or oscore >= SCORE_FIVE:
 			DEBUG(DEBUG_INFO, '(%d, %d), %d:%d, %d:%d' % (x, y, mine-1, mscore, opponent-1, oscore))
-		return max(mscore, oscore)
-				
+		return (mscore, oscore)
+
+	# check if has a none empty position in it's radius range
+	def hasNeighbor(self, board, x, y, radius):
+		start_x, end_x = (x - radius), (x + radius)
+		start_y, end_y = (y - radius), (y + radius)
+
+		for i in range(start_y, end_y+1):
+			for j in range(start_x, end_x+1):
+				if i >= 0 and i < self.len and j >= 0 and j < self.len:
+					if board[i][j] != 0:
+						return True
+		return False
+
 	# get all positions near chess
-	def genmove1(self, board, turn):
-		def addMove(self, board, moves, x, y, mine, opponent):
-			if x >= 0 and x < self.len and y >= 0 and y < self.len:
-				if board[y][x] == 0:
-					#score = self.pos_score[y][x]
-					score = self.evaluatePointScore(board, x, y, mine, opponent)
-					moves.append((score, x, y))
-					board[y][x] = 3
-		
+	def genmove1(self, board, turn, only_threes=False):
+		fives = []
+		mfours, ofours = [], []
+		msfours, osfours = [], []
 		if turn == MAP_ENTRY_TYPE.MAP_PLAYER_ONE:
 			mine = 1
 			opponent = 2
@@ -160,19 +186,42 @@ class ChessAI():
 			opponent = 1
 
 		moves = []
+
 		for y in range(self.len):
 			for x in range(self.len):
-				if board[y][x] != 0 and board[y][x] != 3:
-					offset = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
-					for i in range(len(offset)):
-						addMove(self, board, moves, x + offset[i][0], y + offset[i][1], mine, opponent)
+				if board[y][x] == 0 and self.hasNeighbor(board, x, y, 1):
+					mscore, oscore = self.evaluatePointScore(board, x, y, mine, opponent)
+					point = (max(mscore, oscore), x, y)
+
+					if (only_threes and point[0] < SCORE_THREE): continue
+
+					if mscore >= SCORE_FIVE or oscore >= SCORE_FIVE:
+						fives.append(point)
+					elif mscore >= SCORE_FOUR:
+						mfours.append(point)
+					elif oscore >= SCORE_FOUR:
+						ofours.append(point)
+					elif mscore >= SCORE_SFOUR:
+						msfours.append(point)
+					elif oscore >= SCORE_SFOUR:
+						osfours.append(point)
+
+					moves.append(point)
+
+		if len(fives) > 0: return fives
+
+		if len(mfours) > 0: return mfours
+
+		if len(ofours) > 0:
+			if len(msfours) == 0:
+				return ofours
+			else:
+				return ofours + msfours
 
 		moves.sort(reverse=True)
-		for y in range(self.len):
-			for x in range(self.len):
-				if board[y][x] == 3:
-					board[y][x] = 0
 		DEBUG(DEBUG_INFO, 'len:', len(moves), '  ', moves)
+
+		if (only_threes): return moves
 
 		# FIXME: decrease think time: only consider limited moves with higher score
 		if self.maxdepth > 2 and len(moves) > AI_LIMITED_MOVE_NUM:
@@ -184,11 +233,17 @@ class ChessAI():
 		if depth <= 0 or abs(score) >= SCORE_FIVE: 
 			return score
 
-		moves = self.genmove1(board, turn)
+		only_threes = False
+		if self.number >= 10 and (self.maxdepth - depth) > 1:
+			only_threes = True
+		elif (self.maxdepth - depth) > 3:
+			only_threes = True
+
+		moves = self.genmove1(board, turn, only_threes)
 		bestmove = None
 		self.alpha += len(moves)
 
-		for score, x, y in moves:
+		for dump, x, y in moves:
 			self.set(board, x, y, turn)
 			
 			if turn == MAP_ENTRY_TYPE.MAP_PLAYER_ONE:
@@ -217,6 +272,12 @@ class ChessAI():
 		return alpha
 
 	def search(self, board, turn, depth = 4):
+		if self.number == 0:
+			return 0, 7, 7
+
+		if self.number <= 6:
+			depth = 4
+
 		for i in range(2, depth+1, 2):
 			self.maxdepth = i
 			self.bestmove = None
@@ -235,7 +296,7 @@ class ChessAI():
 		self.belta = 0
 		score, x, y = self.search(board, turn, AI_SEARCH_DEPTH)
 		time2 = time.time()
-		DEBUG(DEBUG_WARN, 'time[%.2f] (%d, %d), score[%d] alpha[%d] belta[%d] save[%d] cache[%d]' % ((time2-time1), x, y, score, self.alpha, self.belta, self.save_count, self.cacheGet))
+		DEBUG(DEBUG_WARN, 'time[%.2f] %d(%d, %d), score[%d] alpha[%d] belta[%d] save[%d] cache[%d]' % ((time2-time1), self.number, x, y, score, self.alpha, self.belta, self.save_count, self.cacheGet))
 		return (x, y)
 		
 	def evaluate(self, board, turn, depth):
@@ -248,13 +309,38 @@ class ChessAI():
 		score = self.__evaluate(board, turn)
 		return score
 	
+	def getPointScore(self, count):
+		score = 0
+		if count[FIVE] > 0:
+			return SCORE_FIVE
+
+		if count[FOUR] > 0:
+			return SCORE_FOUR
+
+		if count[SFOUR] > 0:
+			score += count[SFOUR] * SCORE_SFOUR
+
+		if count[THREE] > 1:
+			score += 5 * SCORE_THREE
+		elif count[THREE] > 0:
+			score += SCORE_THREE
+
+		if count[STHREE] > 0:
+			score += count[STHREE] * SCORE_STHREE
+		if count[TWO] > 0:
+			score += count[TWO] * SCORE_TWO
+		if count[STWO] > 0:
+			score += count[STWO] * SCORE_STWO
+
+		return score
+
 	# calculate score, FIXME: May Be Improved
 	def getScore(self, mine_count, opponent_count):
 		mscore, oscore = 0, 0
 		if mine_count[FIVE] > 0:
-			return (0, SCORE_FIVE)
+			return (10000, 0)
 		if opponent_count[FIVE] > 0:
-			return (0, SCORE_FIVE)
+			return (0, 10000)
 				
 		if mine_count[SFOUR] >= 2:
 			mine_count[FOUR] += 1
@@ -296,14 +382,14 @@ class ChessAI():
 			oscore += opponent_count[STHREE] * 10
 			
 		if mine_count[TWO] > 0:
-			mscore += mine_count[TWO] * 4
+			mscore += mine_count[TWO] * 6
 		if opponent_count[TWO] > 0:
-			oscore += opponent_count[TWO] * 4
+			oscore += opponent_count[TWO] * 6
 				
 		if mine_count[STWO] > 0:
-			mscore += mine_count[STWO] * 4
+			mscore += mine_count[STWO] * 2
 		if opponent_count[STWO] > 0:
-			oscore += opponent_count[STWO] * 4
+			oscore += opponent_count[STWO] * 2
 		
 		return (mscore, oscore)
 
@@ -327,7 +413,7 @@ class ChessAI():
 		mine_count = self.count[mine-1]
 		opponent_count = self.count[opponent-1]
 		if checkWin:
-			DEBUG(DEBUG_WARN, '%d: %s\n%d: %s' % (mine-1, mine_count, opponent-1, opponent_count))
+			DEBUG(DEBUG_INFO, '%d: %s\n%d: %s' % (mine-1, mine_count, opponent-1, opponent_count))
 			return mine_count[FIVE] > 0
 		else:	
 			mscore, oscore = self.getScore(mine_count, opponent_count)
