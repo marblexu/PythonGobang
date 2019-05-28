@@ -338,9 +338,9 @@ class ChessAI():
 	def getScore(self, mine_count, opponent_count):
 		mscore, oscore = 0, 0
 		if mine_count[FIVE] > 0:
-			return (10000, 0)
+			return (SCORE_FIVE, 0)
 		if opponent_count[FIVE] > 0:
-			return (0, 10000)
+			return (0, SCORE_FIVE)
 				
 		if mine_count[SFOUR] >= 2:
 			mine_count[FOUR] += 1
